@@ -33,8 +33,6 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  console.log("✅ Shopify Cart API Debug Başladı");
-
   function formatMoney(cents, format = '${{amount}}') {
       if (typeof cents == "string") cents = cents.replace(".", "");
       let value = "";
@@ -46,21 +44,16 @@ document.addEventListener("DOMContentLoaded", function() {
   fetch('/cart.js')
       .then(response => response.json())
       .then(cart => {
-          console.log('cart', cart);
           updateCartUI(cart);
       });
-  console.log("✅ Collection Sayfasında Stok Bilgisi Debug Başladı");
 
     const productDataElement = document.getElementById("collection-products-data");
     if (!productDataElement) {
-        console.error("🚨 Hata: Stok JSON verisi bulunamadı!");
         return;
     }
 
     let products = JSON.parse(productDataElement.textContent);
-    console.log("🛒 Collection Sayfası Ürün Verileri:", products);
 
-    // ✅ Stok bilgisini veren fonksiyon
     function getStockByVariantId(variantId) {
         for (let product of products) {
             for (let variant of product.variants) {
@@ -69,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
         }
-        return 0; // Varsayılan olarak 0 döndür
+        return 0;
     }
 
   function updateCartUI(cart) {
@@ -85,7 +78,7 @@ document.addEventListener("DOMContentLoaded", function() {
     cartTotalPrice.innerText = (cart.total_price / 100).toFixed(2) + " " + Shopify.currency.active;
 
     cart.items.forEach(item => {
-        const maxStock = getStockByVariantId(item.variant_id); // 🔥 Stok bilgisi çek
+        const maxStock = getStockByVariantId(item.variant_id);
 
         let listItem = document.createElement("li");
         listItem.innerHTML = `
@@ -101,7 +94,6 @@ document.addEventListener("DOMContentLoaded", function() {
         cartItemsContainer.appendChild(listItem);
     });
 
-    // 🚀 Butonlara event listener ekleyelim
     document.querySelectorAll('.increase-qty').forEach(button => {
         button.addEventListener("click", function() {
             let input = this.parentNode.querySelector("input");
@@ -137,7 +129,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             const maxStock = getStockByVariantId(item.variant_id);
-            console.log(`🛒 Maksimum Stok: ${maxStock} | İstenilen Adet: ${quantity}`);
 
             if (quantity > maxStock) {
                 showError(inputElement, `Maksimum stok limiti: ${maxStock}`);
@@ -146,7 +137,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 clearError(inputElement);
             }
 
-            inputElement.value = quantity; // Güncellenmiş değeri input'a yaz
+            inputElement.value = quantity;
 
             return fetch('/cart/change.js', {
                 method: 'POST',
@@ -165,7 +156,6 @@ document.addEventListener("DOMContentLoaded", function() {
 }
 
 
-// 🚨 Hata mesajı gösterme fonksiyonu
 function showError(inputElement, message) {
     clearError(inputElement); // Önce eski hataları temizle
 
@@ -179,15 +169,12 @@ function showError(inputElement, message) {
     inputElement.parentNode.appendChild(errorMsg);
 }
 
-// 🛑 Önceden eklenmiş hataları temizleme fonksiyonu
 function clearError(inputElement) {
     let existingError = inputElement.parentNode.querySelector(".cart-error-message");
     if (existingError) {
         existingError.remove();
     }
 }
-
-
 
    function removeItem(key) {
       fetch('/cart/change.js', {

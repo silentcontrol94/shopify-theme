@@ -2161,24 +2161,21 @@
 
 
 <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                      const quantitySlider = document.getElementById("quantity-slider");
-                      const quantityValue = document.getElementById("quantity-value");
+  document.addEventListener("DOMContentLoaded", function() {
+    const quantitySlider = document.getElementById("quantity-slider");
+    const quantityValue = document.getElementById("quantity-value");
 
-                      // Stok limitini seçili varyanta göre ayarla
-                      function updateMaxQuantity() {
-                        const selectedVariant = document.querySelector('select[name="id"]').value;
-                        const maxStock = JSON.parse('{{ product.variants | json }}').find(v => v.id == selectedVariant).inventory_quantity;
-                        quantitySlider.max = maxStock > 0 ? maxStock : 1;
-                      }
+    function updateMaxQuantity() {
+      const selectedVariant = document.querySelector('select[name="id"]').value;
+      const maxStock = JSON.parse('{{ product.variants | json }}').find(v => v.id == selectedVariant).inventory_quantity;
+      quantitySlider.max = maxStock > 0 ? maxStock : 1;
+    }
 
-                      // Slider değeri değiştikçe güncelle
-                      quantitySlider.addEventListener("input", function() {
-                        quantityValue.innerText = this.value;
-                      });
-
-                      // Varyant değiştiğinde stok sınırını güncelle
-                      document.querySelector('select[name="id"]').addEventListener("change", updateMaxQuantity);
-                        updateMaxQuantity();
-                      });
-                  </script>
+    quantitySlider.addEventListener("input", function() {
+      quantityValue.innerText = this.value;
+    });
+    
+    document.querySelector('select[name="id"]').addEventListener("change", updateMaxQuantity);
+      updateMaxQuantity();
+    });
+</script>
