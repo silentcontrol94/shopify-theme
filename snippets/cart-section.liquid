@@ -1,0 +1,203 @@
+<div id="cart-section">
+  <h2>Sepetiniz</h2>
+  <div id="cart-items"></div>
+  <p id="cart-total">Toplam: <span id="cart-total-price"></span></p>
+</div>
+
+<style>
+.cart-error-message {
+    color: red;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.quantity-control {
+    display: block;
+    align-items: center;
+    gap: 5px;
+}
+
+.quantity-control button {
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+}
+
+.quantity-control button:hover {
+    background-color: #ccc;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  console.log("✅ Shopify Cart API Debug Başladı");
+
+  function formatMoney(cents, format = '${{amount}}') {
+      if (typeof cents == "string") cents = cents.replace(".", "");
+      let value = "";
+      let amount = (cents / 100).toFixed(2);
+      value = format.replace("{{amount}}", amount);
+      return value;
+  }
+
+  fetch('/cart.js')
+      .then(response => response.json())
+      .then(cart => {
+          console.log('cart', cart);
+          updateCartUI(cart);
+      });
+  console.log("✅ Collection Sayfasında Stok Bilgisi Debug Başladı");
+
+    const productDataElement = document.getElementById("collection-products-data");
+    if (!productDataElement) {
+        console.error("🚨 Hata: Stok JSON verisi bulunamadı!");
+        return;
+    }
+
+    let products = JSON.parse(productDataElement.textContent);
+    console.log("🛒 Collection Sayfası Ürün Verileri:", products);
+
+    // ✅ Stok bilgisini veren fonksiyon
+    function getStockByVariantId(variantId) {
+        for (let product of products) {
+            for (let variant of product.variants) {
+                if (variant.id == variantId) {
+                    return variant.inventory_quantity;
+                }
+            }
+        }
+        return 0; // Varsayılan olarak 0 döndür
+    }
+
+  function updateCartUI(cart) {
+    const cartItemsContainer = document.getElementById("cart-items");
+    const cartTotalPrice = document.getElementById("cart-total-price");
+
+    if (!cartItemsContainer || !cartTotalPrice) {
+        console.error("🚨 Hata: Sepet UI elementleri bulunamadı!");
+        return;
+    }
+
+    cartItemsContainer.innerHTML = "";
+    cartTotalPrice.innerText = (cart.total_price / 100).toFixed(2) + " " + Shopify.currency.active;
+
+    cart.items.forEach(item => {
+        const maxStock = getStockByVariantId(item.variant_id); // 🔥 Stok bilgisi çek
+
+        let listItem = document.createElement("li");
+        listItem.innerHTML = `
+            <img src="${item.image}" width="50">
+            <span>${item.product_title}</span>
+            <div class="quantity-control">
+                <button class="decrease-qty" data-key="${item.key}">-</button>
+                <input type="number" min="1" value="${item.quantity}" data-key="${item.key}" data-max-stock="${maxStock}" readonly>
+                <button class="increase-qty" data-key="${item.key}">+</button>
+            </div>
+            <button class="remove-item" data-key="${item.key}">Sil</button>
+        `;
+        cartItemsContainer.appendChild(listItem);
+    });
+
+    // 🚀 Butonlara event listener ekleyelim
+    document.querySelectorAll('.increase-qty').forEach(button => {
+        button.addEventListener("click", function() {
+            let input = this.parentNode.querySelector("input");
+            let newValue = parseInt(input.value) + 1;
+            updateQuantity(this.dataset.key, newValue, input);
+        });
+    });
+
+    document.querySelectorAll('.decrease-qty').forEach(button => {
+        button.addEventListener("click", function() {
+            let input = this.parentNode.querySelector("input");
+            let newValue = Math.max(1, parseInt(input.value) - 1); // En az 1 olabilir
+            updateQuantity(this.dataset.key, newValue, input);
+        });
+    });
+
+    document.querySelectorAll('.remove-item').forEach(button => {
+        button.addEventListener("click", function() {
+            removeItem(this.dataset.key);
+        });
+    });
+}
+
+
+  function updateQuantity(key, quantity, inputElement) {
+    fetch('/cart.js')
+        .then(response => response.json())
+        .then(cart => {
+            const item = cart.items.find(item => item.key === key);
+            if (!item) {
+                showError(inputElement, "Hata: Ürün sepette bulunamadı!");
+                return;
+            }
+
+            const maxStock = getStockByVariantId(item.variant_id);
+            console.log(`🛒 Maksimum Stok: ${maxStock} | İstenilen Adet: ${quantity}`);
+
+            if (quantity > maxStock) {
+                showError(inputElement, `Maksimum stok limiti: ${maxStock}`);
+                quantity = maxStock;
+            } else {
+                clearError(inputElement);
+            }
+
+            inputElement.value = quantity; // Güncellenmiş değeri input'a yaz
+
+            return fetch('/cart/change.js', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: key, quantity: quantity })
+            });
+        })
+        .then(response => response.json())
+        .then(cart => {
+            updateCartUI(cart);
+        })
+        .catch(error => {
+            console.error(error);
+            showError(inputElement, "Bir hata oluştu. Lütfen tekrar deneyin.");
+        });
+}
+
+
+// 🚨 Hata mesajı gösterme fonksiyonu
+function showError(inputElement, message) {
+    clearError(inputElement); // Önce eski hataları temizle
+
+    let errorMsg = document.createElement("p");
+    errorMsg.className = "cart-error-message";
+    errorMsg.style.color = "red";
+    errorMsg.style.fontSize = "12px";
+    errorMsg.style.marginTop = "5px";
+    errorMsg.innerText = message;
+
+    inputElement.parentNode.appendChild(errorMsg);
+}
+
+// 🛑 Önceden eklenmiş hataları temizleme fonksiyonu
+function clearError(inputElement) {
+    let existingError = inputElement.parentNode.querySelector(".cart-error-message");
+    if (existingError) {
+        existingError.remove();
+    }
+}
+
+
+
+   function removeItem(key) {
+      fetch('/cart/change.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: key, quantity: 0 })
+      }).then(response => response.json())
+      .then(cart => {
+          updateCartUI(cart);
+      });
+  }
+});
+</script>
